@@ -278,3 +278,140 @@ def _cdf_from_info_per_bit(info_per_bit):
     info_per_bit[info_per_bit < tol] = 0
     cdf = info_per_bit.cumsum()
     return cdf / cdf[-1]
+
+
+def set_zero_insignificant(h, nelements, confidence):
+    """
+    Remove insignificant binary information from the vector.
+
+    Parameters
+    ----------
+    H : array_like
+        Vector of entropies.
+    nelements : int
+        Number of elements.
+    confidence : float
+        Confidence level.
+
+    Returns
+    -------
+    array_like
+        Vector with insignificant values set to zero.
+    """
+    h_free = binom_free_entropy(nelements, confidence)
+    for i in range(len(h)):
+        h[i] = 0 if h[i] <= h_free else h[i]
+    return h
+
+
+def entropy(p, base=2):
+    """
+    Calculate entropy.
+
+    Parameters
+    ----------
+    p : array_like
+        Probability distribution.
+    base : float, optional
+        Base of the logarithm. Defaults to 2.
+
+    Returns
+    -------
+    float
+        Entropy.
+    """
+    p = np.asarray(p)
+    p = p[p > 0]
+    return -np.sum(p * np.log(p) / np.log(base))
+
+def binom_free_entropy(n, c, base=2):
+    """
+    Calculate the free entropy associated with binom_confidence.
+
+    Parameters
+    ----------
+    n : int
+        Number of trials.
+    c : float
+        Confidence level.
+    base : float, optional
+        Base of the logarithm. Defaults to 2.
+
+    Returns
+    -------
+    float
+        Free entropy.
+    """
+    p = binom_confidence(n, c)
+    return 1 - entropy([p, 1 - p], base)
+
+def binom_confidence(n, c):
+    """
+    Calculate the probability of successes in the binomial distribution.
+
+    Parameters
+    ----------
+    n : int
+        Number of trials.
+    c : float
+        Confidence level.
+
+    Returns
+    -------
+    float
+        Probability of successes.
+    """
+    z = 1 - (1 - c) / 2
+    p = 0.5 + norm_ppf(z) / (2 * np.sqrt(n))
+    return min(1.0, p)
+
+def norm_ppf(q):
+    """
+    Inverse of standard normal cumulative distribution function.
+
+    Parameters
+    ----------
+    q : float
+        Quantile value.
+
+    Returns
+    -------
+    float
+        Inverse standard normal cumulative distribution.
+    """
+    return np.sqrt(2) * erfc_inv(2 * q)
+
+def erfc_inv(x):
+    """
+    Inverse of complementary error function.
+
+    Parameters
+    ----------
+    x : float
+        Value.
+
+    Returns
+    -------
+    float
+        Inverse complementary error function.
+    """
+    return np.sqrt(2) * erfinv(1 - x)
+
+def erfinv(x):
+    """
+    Inverse error function.
+
+    Parameters
+    ----------
+    x : float
+        Value.
+
+    Returns
+    -------
+    float
+        Inverse error function.
+    """
+    a = 0.147
+    y = 2 / (np.pi * a) + np.log(1 - x**2) / 2
+    z = np.sqrt(y**2 - np.log(1 - x**2) / a)
+    return np.sign(x) * z
