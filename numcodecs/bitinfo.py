@@ -217,6 +217,10 @@ def mutual_information(a, b, base=2):
     pr = p.sum(axis=-1)[..., np.newaxis]
     ps = p.sum(axis=-2)[..., np.newaxis, :]
     mutual_info = (p * np.ma.log(p / (pr * ps))).sum(axis=(-1, -2)) / np.log(base)
+
+    h_free = binom_free_entropy(size, 0.95)
+    mutual_info[mutual_info <= h_free] = 0
+
     return mutual_info
 
 
@@ -274,8 +278,9 @@ def get_keepbits(info_per_bit, inflevel=0.99):
 
 def _cdf_from_info_per_bit(info_per_bit):
     """Convert info_per_bit to cumulative distribution function"""
-    tol = info_per_bit[-4:].max() * 1.1  # reduced from 1.5
-    info_per_bit[info_per_bit < tol] = 0
+    # TODO this threshold doesn't match implementation in remove_insignificant.jl
+    #tol = info_per_bit[-4:].max() * 1.1 # reduced from 1.5
+    #info_per_bit[info_per_bit < tol] = 0
     cdf = info_per_bit.cumsum()
     return cdf / cdf[-1]
 
@@ -343,7 +348,8 @@ def binom_free_entropy(n, c, base=2):
         Free entropy.
     """
     p = binom_confidence(n, c)
-    return 1 - entropy([p, 1 - p], base)
+    pk = [p, 1-p]
+    return 1 + np.sum(pk * np.log(pk) / np.log(base))
 
 def binom_confidence(n, c):
     """
@@ -362,56 +368,5 @@ def binom_confidence(n, c):
         Probability of successes.
     """
     z = 1 - (1 - c) / 2
-    p = 0.5 + norm_ppf(z) / (2 * np.sqrt(n))
+    p = 0.5 + np.quantile(np.random.randn(1000), z) / (2 * np.sqrt(n))
     return min(1.0, p)
-
-def norm_ppf(q):
-    """
-    Inverse of standard normal cumulative distribution function.
-
-    Parameters
-    ----------
-    q : float
-        Quantile value.
-
-    Returns
-    -------
-    float
-        Inverse standard normal cumulative distribution.
-    """
-    return np.sqrt(2) * erfc_inv(2 * q)
-
-def erfc_inv(x):
-    """
-    Inverse of complementary error function.
-
-    Parameters
-    ----------
-    x : float
-        Value.
-
-    Returns
-    -------
-    float
-        Inverse complementary error function.
-    """
-    return np.sqrt(2) * erfinv(1 - x)
-
-def erfinv(x):
-    """
-    Inverse error function.
-
-    Parameters
-    ----------
-    x : float
-        Value.
-
-    Returns
-    -------
-    float
-        Inverse error function.
-    """
-    a = 0.147
-    y = 2 / (np.pi * a) + np.log(1 - x**2) / 2
-    z = np.sqrt(y**2 - np.log(1 - x**2) / a)
-    return np.sign(x) * z
