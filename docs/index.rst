@@ -77,6 +77,7 @@ Contents
     delta
     fixedscaleoffset
     quantize
+    bitinfo
     bitround
     packbits
     categorize
