@@ -75,9 +75,9 @@ class BitInfo(BitRound):
         for ax in self.axes:
             info_per_bit = bitinformation(a, axis=ax)
             keepbits.append(get_keepbits(info_per_bit, self.info_level))
-
+        #print(info_per_bit.data)
         keepbits = max(keepbits)
-
+        print(f"keepbits: {keepbits}")
         return BitRound.bitround(buf, keepbits, dtype)
 
 
@@ -218,7 +218,7 @@ def mutual_information(a, b, base=2):
     ps = p.sum(axis=-2)[..., np.newaxis, :]
     mutual_info = (p * np.ma.log(p / (pr * ps))).sum(axis=(-1, -2)) / np.log(base)
 
-    h_free = binom_free_entropy(size, 0.95)
+    h_free = binom_free_entropy(size, c=0.99)
     mutual_info[mutual_info <= h_free] = 0
 
     return mutual_info
@@ -279,55 +279,11 @@ def get_keepbits(info_per_bit, inflevel=0.99):
 def _cdf_from_info_per_bit(info_per_bit):
     """Convert info_per_bit to cumulative distribution function"""
     # TODO this threshold doesn't match implementation in remove_insignificant.jl
-    #tol = info_per_bit[-4:].max() * 1.1 # reduced from 1.5
-    #info_per_bit[info_per_bit < tol] = 0
+    #tol = info_per_bit[-4:].max() # reduced from x1.5
+    #info_per_bit[info_per_bit <= tol] = 0
     cdf = info_per_bit.cumsum()
     return cdf / cdf[-1]
 
-
-def set_zero_insignificant(h, nelements, confidence):
-    """
-    Remove insignificant binary information from the vector.
-
-    Parameters
-    ----------
-    H : array_like
-        Vector of entropies.
-    nelements : int
-        Number of elements.
-    confidence : float
-        Confidence level.
-
-    Returns
-    -------
-    array_like
-        Vector with insignificant values set to zero.
-    """
-    h_free = binom_free_entropy(nelements, confidence)
-    for i in range(len(h)):
-        h[i] = 0 if h[i] <= h_free else h[i]
-    return h
-
-
-def entropy(p, base=2):
-    """
-    Calculate entropy.
-
-    Parameters
-    ----------
-    p : array_like
-        Probability distribution.
-    base : float, optional
-        Base of the logarithm. Defaults to 2.
-
-    Returns
-    -------
-    float
-        Entropy.
-    """
-    p = np.asarray(p)
-    p = p[p > 0]
-    return -np.sum(p * np.log(p) / np.log(base))
 
 def binom_free_entropy(n, c, base=2):
     """
@@ -336,6 +292,7 @@ def binom_free_entropy(n, c, base=2):
     Parameters
     ----------
     n : int
+    iol = info_per_bit[-4:].max() * 1. # reduced from 1.5
         Number of trials.
     c : float
         Confidence level.
